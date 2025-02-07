@@ -7,18 +7,19 @@ function main() {
   const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
   const camera = new THREE.PerspectiveCamera(75, 2, 0.1, 300);
   camera.lookAt(0, 0, 0);
-  // camera.position.z = 15;
-  // camera.position.y = -30;
-  camera.position.z = 40;
-  camera.position.y = -50;
+  camera.position.z = 20;
+  camera.position.x = 40;
+  camera.rotateY(THREE.MathUtils.degToRad(80));
+  camera.rotateZ(THREE.MathUtils.degToRad(90));
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("gray");
+  // const gui = new GUI();
 
-  {
-    const controls = new OrbitControls(camera, canvas);
-    controls.target.set(0, 0, 0);
-    controls.update();
-  }
+  // {
+  //   const controls = new OrbitControls(camera, canvas);
+  //   controls.target.set(0, 0, 0);
+  //   controls.update();
+  // }
 
   const loader = new THREE.TextureLoader();
 
@@ -35,7 +36,7 @@ function main() {
     // spot light
     const spotLight = new THREE.SpotLight(0xffffff, 2000);
     spotLight.angle = THREE.MathUtils.degToRad(55);
-    spotLight.position.set(0, 0, 25);
+    spotLight.position.set(0, 0, 30);
     spotLight.target.position.set(0, 0, 0);
     scene.add(spotLight);
     // spot light helper
@@ -46,8 +47,8 @@ function main() {
     scene.add(hemisphereLight);
   }
 
+  // container surface
   {
-    // container surface
     const topAndBottomTexture = loader.load("./public/stone_texture.jpg"),
       rightAndLeftTexture = loader.load("./public/stone_texture.jpg"),
       frontAndBackTexture = loader.load("./public/stone_texture.jpg");
@@ -78,42 +79,99 @@ function main() {
     folder.add(vector3, "z", -100, 100).onChange(onChangeFn);
   }
 
+  // bases
   {
-    const gui = new GUI();
-    function pendulumBases() {
-      const baseGeo = new THREE.CylinderGeometry(0.5, 0.5, 25, 3);
-      const baseMat = new THREE.MeshBasicMaterial({ color: "brown" });
+    const woodTexture = loader.load("./public/wood_texture.jpg");
+    const baseMat = new THREE.MeshStandardMaterial({ map: woodTexture });
+    const baseGeo = new THREE.CylinderGeometry(0.5, 0.5, 35, 15);
+
+    function pendulumBases(x, y, isRight) {
       const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-      baseMesh.rotation.x = THREE.MathUtils.degToRad(90);
-      // baseMesh.position.set(0, 0, 15);
 
       const baseParent = new THREE.Object3D();
-      baseParent.position.set(20, 20, 10);
+      baseParent.position.set(x, y, 16);
 
-      makeXYZGUI(gui, baseMesh.position, "base pos");
-      makeXYZGUI(gui, baseParent.position, "obj pos");
-
-      const objRotation = {
-        rotationX: 0,
-        rotationY: 0,
-        rotationZ: 0,
-      };
-
-      gui.add(objRotation, "rotationX", -Math.PI, Math.PI).onChange(() => {
-        baseParent.rotation.x = objRotation.rotationX;
-      });
-      gui.add(objRotation, "rotationY", -Math.PI, Math.PI).onChange(() => {
-        baseParent.rotation.y = objRotation.rotationY;
-      });
-      gui.add(objRotation, "rotationZ", -Math.PI, Math.PI).onChange(() => {
-        baseParent.rotation.z = objRotation.rotationZ;
-      });
+      baseParent.rotation.set(
+        THREE.MathUtils.degToRad(isRight ? 90 : -90),
+        0,
+        THREE.MathUtils.degToRad(25)
+      );
 
       baseParent.add(baseMesh);
       scene.add(baseParent);
     }
 
-    pendulumBases();
+    pendulumBases(11, 18, true);
+    pendulumBases(-11, 18, false);
+    pendulumBases(11, -18, true);
+    pendulumBases(-11, -18, false);
+  }
+
+  // bases container
+  {
+    const topAndBottomTexture = loader.load("./public/wood_texture.jpg"),
+      rightAndLeftTexture = loader.load("./public/wood_texture.jpg"),
+      frontAndBackTexture = loader.load("./public/wood_texture.jpg");
+
+    topAndBottomTexture.repeat.set(1, 1);
+    rightAndLeftTexture.repeat.set(1, 1 / 40);
+    frontAndBackTexture.repeat.set(1 / 40, 1);
+
+    const baseContainerGeo = new THREE.BoxGeometry(13, 40, 1);
+
+    const baseContainerMat = [
+      new THREE.MeshStandardMaterial({ map: frontAndBackTexture }),
+      new THREE.MeshStandardMaterial({ map: frontAndBackTexture }),
+      new THREE.MeshStandardMaterial({ map: rightAndLeftTexture }),
+      new THREE.MeshStandardMaterial({ map: rightAndLeftTexture }),
+      new THREE.MeshStandardMaterial({ map: topAndBottomTexture }),
+      new THREE.MeshStandardMaterial({ map: topAndBottomTexture }),
+    ];
+    const baseContainerMesh = new THREE.Mesh(
+      baseContainerGeo,
+      baseContainerMat
+    );
+    baseContainerMesh.position.set(0, 0, 32);
+
+    scene.add(baseContainerMesh);
+  }
+
+  // spheres
+  {
+    const spheres = [];
+
+    for (var i = 0; i < 10; i++) {
+      const value = {
+        y: 18 - i * 4,
+        z: 16 - i,
+      };
+
+      spheres.push(value);
+    }
+
+    const sphereGeo = new THREE.SphereGeometry(1.5, 20, 20);
+    const sphereMat = new THREE.MeshStandardMaterial({ color: "blue" });
+
+    const lineMat = new THREE.LineBasicMaterial({
+      color: "black",
+    });
+
+    for (let sphere of spheres) {
+      const obj = new THREE.Object3D();
+      const sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
+      const points = [
+        new THREE.Vector3(0, sphere.y, sphere.z),
+        new THREE.Vector3(0, sphere.y, 32),
+      ];
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(lineGeo, lineMat);
+
+      obj.position.set(0, sphere.y, sphere.z);
+
+      obj.add(sphereMesh);
+      scene.add(line);
+      scene.add(obj);
+    }
   }
 
   function resizeRendererToDisplaySize(renderer) {
